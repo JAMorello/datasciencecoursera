@@ -7,7 +7,7 @@
 ## Vitoria-Gasteiz, Spain. Dec 2012
 
 
-# 1st Step: Download and unzip the files
+# Prep Step: Download and unzip the files
 
   # Make sure that the directory where the data is to be stored exist
   if(!file.exists("./data")){dir.create("./data")}
@@ -21,7 +21,7 @@
   unzip(zipfile=dwnld_path, exdir="./data")
 
 
-# 2nd Step: See what files the dataset contains
+# 2nd Prep Step: See what files the dataset contains
 
   # Define the path where the new folder has been unziped
   pathdata = file.path("./data", "UCI HAR Dataset")
@@ -39,7 +39,7 @@
   # Those are of our interest!
   
   
-# 3rd Step: Read files and create tables 
+# 1st Step: Read files and create tables 
 
   # Read training data
   x_train = read.table(file.path(pathdata, "train", "X_train.txt"),
@@ -66,14 +66,14 @@
                                header = FALSE)
 
   
-# 4th Step: concatenate rows of data to have feature, activity and subject tables
+# 2nd Step: concatenate rows of data to have feature, activity and subject tables
   
   subject_table <- rbind(subject_train, subject_test)
   activity_table<- rbind(y_train, y_test)
   features_table<- rbind(x_train, x_test)
   
 
-# 5th Step: set the name of the columns of the tables
+# 3rd Step: set the name of the columns of the tables
   
   colnames(subject_table) <- "subjectID"
   colnames(activity_table) <- "activityID"
@@ -81,12 +81,12 @@
   colnames(features_table) <- features[,2]
   
   
-# 6th Step: merge the tables
+# 4th Step: merge the tables
   
   full_data <- cbind(subject_table, activity_table, features_table)
 
   
-# 7th Step: Extract only the measurements on the mean 
+# 5th Step: Extract only the measurements on the mean 
 #           and standard deviation for each measurement
 
   subset_features <- features[,2][grep("mean\\(\\)|std\\(\\)",
@@ -96,7 +96,7 @@
   subset_data <- subset(full_data, select=selected_names)
   
   
-# 8th Step: Use descriptive activity names to name 
+# 6th Step: Use descriptive activity names to name 
 #           the activities in the data set
 
   activityID <- activity_labels[,1]
@@ -105,7 +105,7 @@
                                             from=activityID, to=activityType)
   colnames(subset_data)[colnames(subset_data) == "activityID"] <- "activityType"
   
-# 9th Step: Appropriately labels the data set with descriptive variable names
+# 7th Step: Appropriately labels the data set with descriptive variable names
 
   # Names of Feteatures will labelled using descriptive variable names.
   #
@@ -124,10 +124,12 @@
   colnames(subset_data) <- gsub("BodyBody", "Body", colnames(subset_data))
   
 
-# 10th Step: Create a second,independent tidy data set and ouput it
+# 8th Step: Create a second,independent tidy data set and ouput it
 
-  # Create tidy data set
+  # Create tidy data set with the average of each variable for each activity 
+  # and each subject
   tidy_data <- aggregate(. ~subjectID + activityType, subset_data, mean)
+  # Order the tidy data by subject and then by activity type
   tidy_data <- tidy_data[order(tidy_data$subjectID,tidy_data$activityType),]
   
   # Write the ouput to a text file
