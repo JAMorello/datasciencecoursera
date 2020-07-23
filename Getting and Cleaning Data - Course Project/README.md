@@ -14,7 +14,7 @@ The purpose of this project is to demonstrate your ability to collect, work with
 
 The dataset the script uses is explained in the `CodeBook.md` file.
 
-The script in `tidy_data_script.R` can be launched in the prompt by just importing the file; or in RStudio, by loading the file and submit to source.
+The script in `run_analysis.R` can be launched in the prompt by just importing the file; or in RStudio, by loading the file and submit to source.
 
 **Roughly speaking**, the R code does the following things:
 

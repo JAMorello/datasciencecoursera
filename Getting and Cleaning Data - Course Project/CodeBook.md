@@ -4,7 +4,7 @@ author: "Juan Agustín Morello"
 date: "July 23, 2020"
 ---
 
-# How "tidy_data_script.R" works
+# How "run_analysis.R" works
 
 The code can be launched in the prompt by just importing the file; or in RStudio, by loading the file and submit to source.
 
