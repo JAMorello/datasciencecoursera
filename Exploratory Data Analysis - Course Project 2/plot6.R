@@ -15,6 +15,7 @@ unzip(zipfile=dwnld_path, exdir="./data")
 # 2nd Prep Step: read files
 ## Will likely take a few seconds. Be patient!
 NEI <- readRDS("data/summarySCC_PM25.rds")
+SCC <- readRDS("data/Source_Classification_Code.rds")
 
 # 3rd Prep Step: create table to plot
 library(dplyr)
