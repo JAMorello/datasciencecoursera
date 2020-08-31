@@ -1,0 +1,168 @@
+---
+title: "Regression Model - Course Project"
+author: "Juan Agustín Morello"
+date: "30/8/2020"
+output: pdf_document
+---
+
+```{r echo=FALSE, message=FALSE}
+library(ggplot2)
+```
+
+
+# Summary
+
+In this course project I'll be looking at `Motor Trend Car Road Tests`, also known as `mtcars`, a data set of a collection of cars extracted from 1974 *Motor Trend US* magazine. Comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles. I'm interested in exploring the relationship between a set of variables and miles per gallon. I'll be trying to answer the following:
+
+* Is an automatic or manual transmission better for MPG?
+* Quantify the MPG difference between automatic and manual transmissions
+
+After doing an analysis, I conclude that while seems that manual transmission will yield better miles per gallon when compared with Automatic (on average, a manual car seems to achieve 24 mpg, versus 17 mpg for automatics), after fitting a Multiple Linear Regression, the analysis showed that both type of transmissions contributed negligibly to MPG (nor automatic nor manual transmission are better for MPG), having other variables (weight, displacement, and number of cylinders) a more significant correlation.
+
+# Exploratory Data Analysis
+
+```{r echo=TRUE}
+# Loading the dataset
+data(mtcars)
+# Showing the first 5 rows in dataset
+head(mtcars)
+```
+### Data dictionary
+
+1. `mpg` -  Miles per gallon
+2. `cyl` -	Number of cylinders
+3. `disp` -	Displacement (cu.in.)
+4. `hp` -	Gross horsepower
+5. `drat` -	Rear axle ratio
+6. `wt` -	Weight (1000 lbs)
+7. `qsec` -	1/4 mile time
+8. `vs` -	Engine (0 = V-shaped, 1 = straight)
+9. `am` -	Transmission (0 = automatic, 1 = manual)
+10. `gear` -	Number of forward gears
+11.	`carb` -	Number of carburetors
+
+### Some data transformation
+
+```{r echo=TRUE}
+# Transform some variables from numeric type to factor
+# Engine ('vs') and Transmision ('am')  (are binomial)
+# Cylinders ('cyl'), Gears ('gear') and Carburetors ('carb')
+
+mtcars$cyl <- factor(mtcars$cyl)
+mtcars$carb <- factor(mtcars$carb)
+mtcars$vs <- factor(mtcars$vs)
+mtcars$gear <- factor(mtcars$gear)
+# For more understanding, I'll change 0 and 1 to "Automatic" and "Manual"
+mtcars$am <- factor(mtcars$am, labels=c("Automatic","Manual"))
+```
+
+### Data summary
+
+```{r echo=TRUE}
+summary(mtcars)
+```
+
+If we check the relationship between Miles Per Gallon and Transmission (see Appendix, "Plot 1"), we'll see that Automatic transmissions have a lower MPG than Manual transmissions. 
+
+```{r echo=TRUE}
+automaticMean <- mean(mtcars$mpg[mtcars$am=="Automatic"])
+manualMean <- mean(mtcars$mpg[mtcars$am=="Manual"])
+data.frame(automatic = automaticMean, 
+           manual = manualMean, 
+           difference = manualMean - automaticMean)
+```
+
+On average, manual transmission have 7.24 mpg more than automatic transmission.
+We'll check this fact doing a Regression analysis.
+
+# Regression Analysis
+
+### Single Linear Regression
+
+Our immediate objective is to see the relationship between two variables: `mpg` (outcome) and `am` (predictor). So, the ideal regression model to use in this case is a Single Linear Regression. We'll make a model and check it:
+
+```{r echo=TRUE}
+lm1 <- lm(mpg ~ am, data = mtcars)
+summary(lm1)
+```
+
+Here we can see that between Automatic and Manual transmissions there is a difference (on average) of 7.25 `mpg` in favor to Manual. But as the R-squared value is 36% and that tells us that the model only explains that that specific percentage of the variance in `mpg` can be attributed to the transmission variable alone. So, I'll have to put aside this Single Linear Regression and look for other variables in the data that could help us develop a Multiple Linear Regression more robust.
+
+### Multiple Linear Regression
+
+To have a more accurate model I'll have to look for other variables that are correlated to `mpg`.
+
+```{r echo=TRUE}
+# I am interested more in analysis of variance than making a linear model. 
+# The 'aov' wrapper function helps
+analysis <- aov(mpg ~ ., data = mtcars)
+summary(analysis)
+```
+
+In this summary, We can see that the more significant variables, looking at those that have a P-value < 0.05, are `cyl`, `disp`, `wt`. Those variables have the strongest correlation with `mpg`.For the sake of it, I'll add the `hp` variable because, compared with the leftover variables, has the lowest P-value. I'll build a new model using these variables plus `am` (I relate `cyl` and `am` because both are factors) .
+
+```{r echo=TRUE}
+lm2 <- lm(mpg ~ cyl*am + disp + wt + hp, data = mtcars)
+summary(lm2)
+```
+
+The summary tell us that adding `cyl`, `disp`, `wt` and `hp`, being their correlation with `mpg` more significant, affected the correlation between `mpg` and `am`. The model explains 86% of the variance of `mpg`. 
+
+The coefficients conclude that :
+
+* Having 4 cylinders, manual transmission has 2.8 `mpg` than automatic transmission.
+* Increasing the number of cylinders from 4 to 6 decreases `mpg` by 1.8 having automatic transmission and decreases by 2.4 having manual transmission. 
+* Increasing the cylinders to 8 decreases `mpg` by 1.94 and decreases by 1 having manual transmission. 
+* Seems that increasing the displacement doesn't change `mpg`
+* Seems that increasing the horsepower decreases `mpg` 0.3 per every 100 horsepower.
+* Seems that Weight decreases `mpg` by 2.6 for each 1000 lb increase.
+
+In conclusion, we cannot hold that the difference between automatic and manual transmission is of 7.24 mpg. The Multiple Linear Regression show us that factors as weight, displacement, horsepower and number of cylinders make the true difference in MPG consumption in automobiles. 
+
+Manual transmission has 2.8 higher mpg than automatic transmission when there are 4 cylinders. When there are 6 cylinders, there is a 0.7 mpg difference in favor of automatic transmission; and when there are 8 cylinders, there is a 1 mpg difference in favor of manual transmission. Those differences are almost negligible: transmission do not influences in the Miles Per Gallon of automobiles.
+
+
+# Diagnostics
+
+**Comparing Regression Models**
+
+I'll compare the Single and Multiple Linear Regressions with the `anova` function looking at the P-value and see what model is significantly better. I'll create a new Multiple Linear Regression with the same variables of `lm2` but here I'll not consider the relationship between `cyl` and `am` to show this influences in the analysis.
+
+```{r echo=TRUE}
+lm3 <- lm(mpg ~ cyl + disp + wt + hp + am, data = mtcars)
+
+anova(lm1, lm2, lm3)
+```
+
+**Residuals**
+
+Also, I'll make some diagnostic test on `lm2` model: I'll check the residuals of the model for non-normality (Appendix - "Plot 2").
+
+# Appendix
+
+## Plot n°1
+
+```{r echo=TRUE}
+plot1 <- ggplot(data=mtcars,
+                aes(x=am, y=mpg))
+plot1 <- plot1 + geom_boxplot(aes(fill=am))
+plot1 <- plot1 + labs(title="Miles per Galon relative to Transmission Type",
+                      x="Transmission",
+                      y="Miles per Galon")
+plot1 <- plot1 + theme(legend.position = "none")
+plot1
+```
+
+### Plot n°2
+
+```{r echo=TRUE}
+par(mfrow = c(2, 2))
+plot(lm2)
+```
+
+The previous plots are are diagnostic of the residuals of the `lm2` model.
+
+* **Residuals vs Fitted:** supports assumption of independence (Homoscedasticity) 
+* **Normal Q-Q:** The points follow closely the line concluding that residuals are normally distributed.
+* **Scale-Location:** the random distribution confirms the constant variance assumption
+* **Residuals vs Leverage:** Since all points are within the 0.5 bands, the conclusion is that there are no outliers.
