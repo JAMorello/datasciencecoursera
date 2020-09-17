@@ -32,11 +32,11 @@ head(airquality)
 
 ## App User Interface
 
-<center>![](UI-image.png){width=80%}</center>
+<center>![](UI-image.png){width=90%}</center>
 <center>Just an example</center>
 
 ## Links
 
 - Shiny web app: https://jamorello.shinyapps.io/DDP-Course-Project/
-- Source Code: 
+- Source Code: https://github.com/JAMorello/datasciencecoursera/tree/master/Developing%20Data%20Products%20-%20Assignments/DDP-Course-Project
 
