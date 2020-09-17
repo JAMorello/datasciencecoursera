@@ -1,0 +1,30 @@
+---
+title: "R Markdown and Leaflet"
+author: "Juan Agustín Morello"
+date: "17/9/2020"
+output: 
+  html_document:
+    keep_md: yes
+---
+
+## Three places in Japan I hope to visit sometime!
+
+```{r}
+library(leaflet)
+
+df <- data.frame(lat=c(35.360638, 34.967222, 35.710029),
+                 lng=c(138.729050, 135.772778, 139.810704),
+                 name=c("Mt. Fuji", "Fushimi Inari-Taisha", "Tokyo Skytree"))
+
+japanIcon <- makeIcon(
+  iconUrl = "https://image.flaticon.com/icons/png/512/129/129352.png",
+	iconWidth = 31*215/230, iconHeight = 31,
+	iconAnchorX = 31*215/230/2, iconAnchorY =16
+)
+
+my_map <- df[,1:2] %>% leaflet() %>% addTiles() %>%
+          addMarkers(icon = japanIcon,
+                     popup = df$name)
+my_map
+```
+

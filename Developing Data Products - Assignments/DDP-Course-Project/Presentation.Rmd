@@ -1,0 +1,42 @@
+---
+title: "CDP - Course Project"
+author: "Juan Agustín Morello"
+date: "17/9/2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Introduction
+
+Have you ever wondered why the air in New York city is so... smelly?
+Or what its happening to the Ozone when the temperature is high and there's little wind?
+
+Well, now you can get some answers! This Shiny app will do wonders for you!
+
+**What the web app does?**
+
+- Quickly explore `airquality` data set
+- Find relations between variables
+- Simple linear regression model (one regressor)
+- Predict Ozone values by user inputs
+
+## `airquality` data set preview
+
+```{r echo=TRUE}
+data("airquality")
+head(airquality)
+```
+
+## App User Interface
+
+<center>![](UI-image.png){width=80%}</center>
+<center>Just an example</center>
+
+## Links
+
+- Shiny web app: https://jamorello.shinyapps.io/DDP-Course-Project/
+- Source Code: 
+

@@ -1,0 +1,13 @@
+name: DDP-Course-Project
+title: DDP-Course-Project
+username:
+account: jamorello
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2832726
+bundleId: 3641293
+url: https://jamorello.shinyapps.io/DDP-Course-Project/
+when: 1600374219.91774
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: Presentation.Rmd|UI-image.png

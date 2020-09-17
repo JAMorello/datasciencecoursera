@@ -1,0 +1,27 @@
+---
+title: "R Markdown and Plotly"
+author: "Juan Agustín Morello"
+date: "17/9/2020"
+output: 
+  html_document:
+    keep_md: yes
+---
+
+# Thursday 17/09/2020
+
+```{r message=FALSE}
+library(plotly)
+library(ggplot2)
+data(ToothGrowth)
+
+plot <- ggplot(ToothGrowth, aes(as.factor(dose), len)) +
+        geom_boxplot(aes(fill=as.factor(dose))) + 
+        facet_grid(.~supp) +
+        labs (x = "Dose Amount (mg/day)",
+              y = "Length of odontoblasts",
+              title = "Length vs. Dose by Supplement") +
+        theme(legend.position = "none")
+        
+ggplotly(plot)
+```
+

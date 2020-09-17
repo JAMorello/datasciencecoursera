@@ -1,0 +1,53 @@
+---
+title: "Presentation and Plotly"
+author: "Juan Agustín Morello"
+date: "17/9/2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Objective
+
+This presentation (made with R Markdown in Rstudio) will use the `ToothGrowth` data set to draw a graph with `ggplot2` and convert it to an interactive map with `plotly`.
+
+## R Code 
+
+```{r echo=TRUE, results='hide', message=FALSE}
+library(plotly)
+library(ggplot2)
+data(ToothGrowth)
+
+# Generate a ggplot graph
+plot <- ggplot(ToothGrowth, aes(as.factor(dose), len)) +
+        geom_boxplot(aes(fill=as.factor(dose))) + 
+        facet_grid(.~supp) +
+        labs (x = "Dose Amount (mg/day)",
+              y = "Length of odontoblasts",
+              title = "Length vs. Dose by Supplement") +
+        theme(legend.position = "none")
+
+# Convert ggplot graph to an interactive one with plotly
+ggplotly(plot)
+```
+
+## Slide with Plot
+
+```{r echo=FALSE}
+library(plotly)
+library(ggplot2)
+data(ToothGrowth)
+
+plot <- ggplot(ToothGrowth, aes(as.factor(dose), len)) +
+        geom_boxplot(aes(fill = as.factor(dose))) + 
+        facet_grid(. ~ supp) +
+        labs (x = "Dose Amount (mg/day)",
+              y = "Length of odontoblasts",
+              title = "Length vs. Dose by Supplement") +
+        theme(legend.position = "none")
+
+ggplotly(plot)
+```
+
