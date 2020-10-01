@@ -47,9 +47,9 @@ Also, if the algorithm detects that the user haven't finished typing a word afte
 
 ## Links
 
-The Shiny application can be visualized [here]()
+The Shiny application can be visualized [here](https://jamorello.shinyapps.io/WordPredictor/)
 
 You can see the Milestone Report [here](https://rpubs.com/Katriel/dsc-milestone-report)
 
-The source code is available [here]()
+The source code is available [here](https://github.com/JAMorello/datasciencecoursera/tree/master/Data%20Science%20Capstone)
 

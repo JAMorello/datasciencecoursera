@@ -11,7 +11,7 @@ shinyUI(fluidPage(theme = shinytheme("journal"),
                           
                 h3("Input text:"),
                     
-                    tags$textarea(id="user_text", rows=2, cols=20),
+                    tags$textarea(id="user_text", rows=2, cols=40),
                     sliderInput("num_predictions", "Number of predictions:",
                                 min = 1, max = 10, value = 3, step = 1),
                     submitButton("Submit")
