@@ -1,0 +1,484 @@
+---
+title: "Data Science Capstone - Milestone Report"
+author: "Juan Agustín Morello"
+date: "28/9/2020"
+output: 
+  html_document:
+      keep_dm: yes
+---
+
+# Synopsis
+
+This is the Milestone Report for the Coursera Data Science Capstone project. The goal of the capstone project is to create a predictive text model using a large text corpus of documents as training data. Natural language processing techniques will be used to perform the analysis and build the predictive model.
+
+The goal of this report is showing the data acquisition, data cleaning and the data exploration performed in the process of building a word prediction algorithm and a related Shiny web application as part of the requirements for the Capstone project.
+
+# Data
+
+I've downloaded the zip file containing the text files from https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip.
+
+```{r echo=TRUE, eval=FALSE}
+# Make sure that the directory where the data is to be stored exist
+if(!file.exists("../data")){dir.create("../data")}
+
+# Create a vector named "URL" with the URL address
+URL <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+
+# Set download path directory
+dwnld_path <- "../data/Coursera-SwiftKey.zip"
+
+# Download file
+download.file(URL, destfile=dwnld_path, method="curl")
+
+# Unzip file on data folder
+unzip(zipfile="Coursera-SwiftKey.zip", exdir="../data")
+```
+
+The raw data for this project came from a corpus called HC Corpora (www.corpora.heliohost.org), whom collected the text from publicly available sources with a web crawler script. The Course instructors curated the raw data of Corpora to be used in this assignment: there is a difference in the structure of the data between this and the HC Corpora.
+
+The text data we are provided is available in 4 different languages: 1) German (`de_DE`), 2) English - United States (`en_US`), 3) Finnish (`fi_FI`) and 4) Russian (`ru_RU`)
+
+The data sets consist of text from 3 different sources: 1) Blogs, 2) News and 3) Twitter feeds (comprising three files named `LOCALE.blogs.txt`, `LOCALE.news.txt` and `LOCALE.twitter.txt` respectively)
+
+In this project, I'll will only focus on the English - United States data sets.
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+## Load data and get a sample of each
+
+blogFile <- '../data/en_US/en_US.blogs.txt'
+newsFile <- '../data/en_US/en_US.news.txt'
+twitterFile <- '../data/en_US/en_US.twitter.txt'
+
+blogsData <- readLines(blogFile, warn=FALSE, 
+                       encoding="UTF-8", skipNul = TRUE)
+newsData <- readLines(newsFile, warn=FALSE, 
+                      encoding="UTF-8", skipNul = TRUE)
+twitterData <- readLines(twitterFile, warn=FALSE,
+                         encoding="UTF-8", skipNul = TRUE)
+```
+
+### Detail of Files
+
+Before starting to work with the files mentioned above, it is very important to have look into the basic details of those files like lines, words, etc.
+
+```{r echo=TRUE, cache=TRUE}
+library(stringi) # To access to text/string related functions
+
+# Get number of lines in the texts
+blogsLength <- length(blogsData)
+newsLength <- length(newsData)
+twitterLength <- length(twitterData)
+
+# Get number of words
+blogsWords <- sum(stri_count_words(blogsData))
+newsWords <- sum(stri_count_words(newsData))
+twitterWords <- sum(stri_count_words(twitterData))
+
+
+data.frame(File = c("blogs","news","twitter"), 
+           t(rbind(sapply(list(blogsData, newsData, twitterData),
+                          stri_stats_general)[c(1, 3),])),
+             TotalWords = sapply(list(blogsData, newsData, twitterData),
+                                 stri_stats_latex)[4,],
+           WordsPerLine = c(blogsWords/blogsLength,
+                            newsWords/newsLength,
+                            twitterWords/twitterLength))
+```
+
+### Sampling
+
+Now that I've loaded the raw data, I'll will take a sample of each file. Since the raw data is very huge (being high RAM consuming) and running the calculations will be really slow (all the data transformations, the dumping into Document Term Matrix, and the dumping into frequency tables takes a long time), sampling will be better option before starting the analysis. The blogs, news, and twitters will be sampled separately (will include 5% of each text file), and after combining the three samples in one variable, I'll delete the raw data from the environment to free memory.
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+set.seed(1993) # Set seed for reproducibility
+
+# Sample data sets
+blogsSample <- sample(blogsData, blogsLength * 0.05)
+newsSample <- sample(newsData, newsLength * 0.05)
+twitterSample <- sample(twitterData, twitterLength * 0.05)
+
+# Delete full data sets to liberate RAM
+rm(blogsData); rm(newsData); rm(twitterData)
+```
+
+# Data Preprocessing
+
+I'll preprocess the data with the `tm` package ("tm" stands for "text mining). Loading `tm` package and creating the corpus is the first step before starting the analysis on the data. The main structure for managing documents in `tm` is a so-called Corpus, representing a collection of text documents (in this case, each document in the corpus is a line of text of the data set).
+
+### Create Corpus
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+library(tm)
+## Create CORPUS of words
+
+sampleData <- c(blogsSample, newsSample, twitterSample)
+
+# A Volatile Corpus is needed for tokenization with RWeka (does not works with
+# the 'Corpus' method as is it a Simple Corpus). A VCorpus is fully kept in 
+# memory and can be applied to it the NGramTokenizer of RWeka.
+
+corpus <- VCorpus(VectorSource(sampleData),
+                  readerControl = list(language = "eng"))
+
+# Delete sample data
+rm(blogsSample); rm(newsSample); rm(twitterSample); rm(sampleData) 
+```
+
+### Data Cleaning
+
+Here we have to implement Tokenization, this is, we have to identify appropriate tokens such as words, punctuation, and numbers, and clean the data as so to have a set of text useful for prediction. Also we have to find a way to filter profanity and other words we do not want to predict.
+
+NOTE: Keep in mind that we do NOT need to remove stopwords or apply stemming on our text mining operations. After all, we need to have stopwords and "normal" (not stemmed) words to properly "predict" the words in our text prediction model. However, I'll create two corpus of text: one with stopwords and other without. This is merely as means to show some graphs in the Data Analysis section; the final text prediction model will be trained with stopwords.
+
+**This is the raw text of the first document**
+
+```{r echo=TRUE, cache=TRUE}
+print(corpus[[1]][1])
+```
+
+**Set characters to lower case**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+corpus <- tm_map(corpus, content_transformer(tolower))
+```
+
+**Remove URLs**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+removeURL <- content_transformer(function(x) gsub("(f|ht)tp(s?)://\\S+", "", 
+                                                  x, perl=T))
+corpus <- tm_map(corpus, removeURL)
+```
+
+**Remove emails**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+RemoveEmail <- content_transformer(function(x) {
+  require(stringr)
+  str_replace_all(x,"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+", "")}) 
+corpus <- tm_map(corpus, RemoveEmail)
+```
+
+**Replace apostrophe**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+# This steps is necessary as the apostrophe character ( ’ ) is a rare one and is better to have ( ' ) instead
+removeApostrophe <- content_transformer( function(x) gsub("’", "'", x))
+corpus <- tm_map(corpus, removeApostrophe)
+```
+
+**Remove profanity words**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+# A list of profanity words provided by Google
+# https://code.google.com/archive/p/badwordslist/downloads
+profanityFile <- "../data/badwords.txt"
+profanityWords <- readLines(profanityFile, warn=FALSE,
+                            encoding="UTF-8", skipNul = TRUE)
+profanityWords <- tolower(profanityWords)
+profanityWords <- gsub("\\*|\\+|\\(", "", profanityWords)
+corpus <- tm_map(corpus, removeWords, profanityWords)
+```
+
+**Remove numbers**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+corpus <- tm_map(corpus, content_transformer(removeNumbers))
+```
+
+**Remove non-alphanumeric characters**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+removeExtras <- content_transformer( function(x){
+  gsub("\\,|\\;|\\:|\\&|\\-|\\—|\\)|\\(|\\{|\\}|\\[|\\]|\\!|\\?|\\+|=|@|~|/|<|>|\\^", 
+       " ", x)}) 
+corpus <- tm_map(corpus, removeExtras)
+```
+
+**Remove any left punctuation**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+corpus <- tm_map(corpus, content_transformer(removePunctuation))
+```
+
+**Create new corpus without stopwords**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+# 'nsw' stands for 'no stopwords'
+nsw_corpus <- tm_map(corpus, removeWords, stopwords("english"))
+```
+
+**Remove whitespace**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+corpus <- tm_map(corpus, content_transformer(stripWhitespace))
+nsw_corpus <- tm_map(nsw_corpus, content_transformer(stripWhitespace))
+```
+
+**This is the cleaned text of the first document (*with* stopwords)**
+
+```{r echo=FALSE}
+corpus <- readRDS("../data/corpus/corpus")
+```
+```{r echo=TRUE, cache=TRUE}
+print(corpus[[1]][1])
+```
+
+**This is the cleaned text of the first document (*without* stopwords)**
+
+```{r echo=FALSE}
+nsw_corpus <- readRDS("../data/corpus/nsw_corpus")
+```
+```{r echo=TRUE, cache=TRUE}
+print(nsw_corpus[[1]][1])
+```
+
+# Exploratory Analysis
+
+The first step in building a predictive model for text is to perform a thorough exploratory analysis of the data to understand the distribution and relationship between the words, tokens, and phrases in the text. The goal of this task is to understand the basic relationships that are in the data.
+
+I'll check out the word frequency and n-grams frequency, that it, I'll find out what single words, pair of words, and trio of words are the most frequent (with and without stopwords). For this I'll use the `RWeka` package, a collection of machine learning algorithms for data mining tasks.
+
+### Functions related to n-grams
+
+```{r echo=TRUE, message=FALSE, cache=TRUE, eval=FALSE}
+library(RWeka)
+library(tidytext)
+library(dplyr)
+
+# Create tokenization functions for bigram, trigram and quadgram
+bigram <- function(x) NGramTokenizer(x, Weka_control(min = 2, max = 2))
+trigram <- function(x) NGramTokenizer(x, Weka_control(min = 3, max = 3))
+quadgram <- function(x) NGramTokenizer(x, Weka_control(min = 4, max = 4))
+
+# Get n-gram frequencies in a 'tibble' form
+getFreq <- function(dtm) {
+  freq_tibble <- select(tidy(dtm), term, count) %>%
+            group_by(term) %>% summarise(freq = sum(count)) %>%
+            arrange(desc(freq))
+  return(freq_tibble)
+}
+```
+
+### Create Document Term Matrix for each N-gram
+
+I'll create a DTM for each n-gram (1 to 4). With n-grams 2 to 4, I have to pass to the DTM function a list of control parameters to get the corresponding tokens.
+
+```{r echo=TRUE, cache=TRUE, eval=FALSE}
+# 1-gram
+dtm <- DocumentTermMatrix(corpus)
+nsw_dtm <- DocumentTermMatrix(nsw_corpus)
+
+# 2-gram, bigram
+bigram_dtm <- DocumentTermMatrix(corpus, 
+                                 control = list(tokenize = bigram))
+nsw_bigram_dtm <- DocumentTermMatrix(nsw_corpus, 
+                                     control = list(tokenize = bigram))
+
+# 3-gram, trigram
+trigram_dtm <- DocumentTermMatrix(corpus, 
+                                  control = list(tokenize = trigram))
+nsw_trigram_dtm <- DocumentTermMatrix(nsw_corpus, 
+                                      control = list(tokenize = trigram))
+
+# 4-gram, quadgram
+quadgram_dtm <- DocumentTermMatrix(corpus, 
+                                   control = list(tokenize = quadgram))
+nsw_quadgram_dtm <- DocumentTermMatrix(nsw_corpus, 
+                                       control = list(tokenize = quadgram))
+
+# Delete from memory the corpus
+rm(corpus); rm(nsw_corpus)
+```
+
+Document-Term matrices tend to get very big already for normal sized data sets. I'll could use a method to remove sparse terms, i.e., terms occurring only in very few documents/lines of text (meaning, deleting columns with near 100% observations with value of 0). Normally, this reduces the matrix dramatically without losing significant relations inherent to the matrix. BUT ONSE SHOULD BE CAREFUL USING THIS. As the n-gram gets higher, one can lose A LOT of observations (specially the `no stopwords` DTM). Fine-tuning of the `sparse` parameter can help (the closer to 1 the better), but don't depend on it. The idea is to have the highest quantity of most frequent n-grams as possible. Using the function like this: `dtm <- removeSparseTerms(dtm, 0.999)` returns a DTM with roughly 1500 observations; those are the most frequent words. BUT we lose more of 100.000 infrequent words. 
+
+As this is unacceptable (we want to predict the next or current word even in the case of rare and infrequent phrases), we should look for a workaround. The problem in the beginning was dumping the DTM into a matrix, calculate the sum of the columns/words, and create a dataframe with words an their correspondent count/frequency. The problem with this approach is that the matrix holds the zero values that the DT has, making the matrix HUGHE, reaching the GB level of memory consumption.
+
+The solution I've found, is to use the `tidytext` package (as shown two blocks of code above). It has a `tidy` function, that catches only the non-zero values are included in the tidied output (a 'tibble' data table); in this sense, is different from the matrix of a DTM: is not a sparse matrix.
+
+Along with functions of `dyplr`, this whole operation takes more time than with a non-sparse DTM and the tibble tables size in memory is almost the same as the DTM. But we can preserve all the terms that the DTM has (no dropping with `removeSparseTerms`).
+
+### Get n-gram data frames
+
+```{r echo=TRUE, cache=TRUE, message=FALSE, eval=FALSE}
+# unigram data frame
+onegram_freq <- getFreq(dtm)
+nsw_onegram_freq <- getFreq(nsw_dtm)
+rm(dtm); rm(nsw_dtm) # Delete the DTM from memory
+
+# bigram data frame
+bigram_freq <- getFreq(bigram_dtm)
+nsw_bigram_freq <- getFreq(nsw_bigram_dtm)
+rm(bigram_dtm); rm(nsw_bigram_dtm) # Delete the DTM from memory
+
+# trigram data frame
+trigram_freq <- getFreq(trigram_dtm)
+nsw_trigram_freq <- getFreq(nsw_trigram_dtm)
+rm(trigram_dtm); rm(nsw_trigram_dtm) # Delete the DTM from memory
+
+# quadgram data frame
+quadgram_freq <- getFreq(quadgram_dtm)
+nsw_quadgram_freq <- getFreq(nsw_quadgram_dtm)
+rm(quadgram_dtm); rm(nsw_quadgram_dtm) # Delete the DTM from memory
+```
+
+```{r echo=FALSE}
+onegram_freq <- readRDS("../data/freq/onegram_freq")
+bigram_freq <- readRDS("../data/freq/bigram_freq")
+trigram_freq <- readRDS("../data/freq/trigram_freq")
+quadgram_freq <- readRDS("../data/freq/quadgram_freq")
+
+nsw_onegram_freq <- readRDS("../data/freq/nsw_onegram_freq")
+nsw_bigram_freq <- readRDS("../data/freq/nsw_bigram_freq")
+nsw_trigram_freq <- readRDS("../data/freq/nsw_trigram_freq")
+nsw_quadgram_freq <- readRDS("../data/freq/nsw_quadgram_freq")
+```
+
+
+### Data Analysis
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+library(ggplot2)
+library(grid)
+library(gridExtra)
+
+# Graphs functions
+makePlot <- function(data, label) {
+  ggplot(data[1:15,], aes(reorder(term, -freq), freq)) +
+         geom_bar(stat = "identity", aes(fill=freq)) +
+         theme(axis.text.x = element_text(angle = 60, size = 12, hjust = 1),
+               legend.position = "none") +
+         labs(x = label, y = "Frequency") +
+         scale_fill_gradient(low="blue", high="red", na.value = NA)
+}
+
+arrangePlots <- function(plot1, plot2, title) {
+  grid.arrange(plot1, plot2, ncol = 2,
+               top = textGrob(title, gp = gpar(fontsize = 15, font = 3)))
+}
+
+# Table functions
+createTable <- function(freq_table) {
+  total <- sum(freq_table$freq >= 0)
+  more_10 <- sum(freq_table$freq >= 10)
+  more_25 <- sum(freq_table$freq >= 25)
+  more_50 <- sum(freq_table$freq >= 50)
+  more_100 <- sum(freq_table$freq >= 100)
+  more_1000 <- sum(freq_table$freq >= 1000)
+  
+  data.frame(Freq = c("All", ">=10", ">=25", ">=50", ">=100", ">=1000"),
+             NumberOfWords = c(total, more_10, more_25, 
+                               more_50, more_100, more_1000),
+             FractionOfTotal = c(total/total, more_10/total, more_25/total,
+                                 more_50/total, more_100/total, more_1000/total))
+}
+```
+
+### Unigrams
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+onegram_plot <- makePlot(onegram_freq, "with stopwords")
+nsw_onegram_plot <- makePlot(nsw_onegram_freq, "without stopwords")
+arrangePlots(onegram_plot, nsw_onegram_plot, "Onegram - Single words frequency")
+```
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+createTable(onegram_freq) # With stopwords
+createTable(nsw_onegram_freq) # Without stopwords
+```
+
+### Bigrams
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+bigram_plot <- makePlot(bigram_freq, "with stopwords")
+nsw_bigram_plot <- makePlot(nsw_bigram_freq, "without stopwords")
+arrangePlots(bigram_plot, nsw_bigram_plot, "Bigram - Duo of words frequency")
+```
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+createTable(bigram_freq) # With stopwords
+createTable(nsw_bigram_freq) # Without stopwords
+```
+
+### Trigrams
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+trigram_plot <- makePlot(trigram_freq, "with stopwords")
+nsw_trigram_plot <- makePlot(nsw_trigram_freq, "without stopwords")
+arrangePlots(trigram_plot, nsw_trigram_plot, "Trigram - Trio of words frequency")
+```
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+createTable(trigram_freq) # With stopwords
+createTable(nsw_trigram_freq) # Without stopwords
+```
+
+### Quadgrams
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+quadgram_plot <- makePlot(quadgram_freq, "with stopwords")
+nsw_quadgram_plot <- makePlot(nsw_quadgram_freq, "without stopwords")
+arrangePlots(quadgram_plot, nsw_quadgram_plot, "Quadgram - Four words frequency")
+```
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+createTable(quadgram_freq) # With stopwords
+createTable(nsw_quadgram_freq) # Without stopwords
+```
+
+### Table with info on n-grams with stopwords
+
+**Percentage of frequency that the top X words accounts for**
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+
+getPercentage <- function(freq_table, top) {
+  round(sum(freq_table[1:top,2]) / sum(freq_table$freq), digits = 3)
+}
+
+data.frame(n_gram = c("unigram", "bigram", "trigram", "quadgram"),
+           top_10 = c(getPercentage(onegram_freq, 10),
+                      getPercentage(bigram_freq, 10),
+                      getPercentage(trigram_freq, 10),
+                      getPercentage(quadgram_freq, 10)),
+           top_100 = c(getPercentage(onegram_freq, 100),
+                       getPercentage(bigram_freq, 100),
+                       getPercentage(trigram_freq, 100),
+                       getPercentage(quadgram_freq, 100)),
+           top_10000 = c(getPercentage(onegram_freq, 10000),
+                         getPercentage(bigram_freq, 10000),
+                         getPercentage(trigram_freq, 10000),
+                         getPercentage(quadgram_freq, 10000)))
+```
+In the unigram, the top 10,000 (over 108,534) words account for the 90% registered frequency. But, for the bigram, the top 10,000 words accounts only for 38%; in the trigram, for the 10%, and in the quadgram for the 3%. We have to find a number of words in each n-gram that help us reach a 90% account of frequency:
+
+In the case of bigram, the top 800,000 bigrams (over 1,123,508) accounts for the 90% of frequency.
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+getPercentage(bigram_freq, 800000)
+```
+
+In the case of trigram, the top 2,100,000 trigrams (over 2,322,657) accounts for the 92% of frequency.
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+getPercentage(trigram_freq, 2100000)
+```
+
+In the case of quadgram, the top 2,500,000 quadgrams (over 2,774,332) accounts for the 92% of frequency.
+
+```{r echo=TRUE, message=FALSE, cache=TRUE}
+getPercentage(quadgram_freq, 2500000)
+```
+
+# Conclusions
+
+Why would we need a way to find out how many words are needed to reach a certain percentage of frequency "coverage" for our predictive text model? Because the tables that holds the words and their frequency, the 'tibbles' we have made, are very heavy, they are memory intensive. Thus, we would like to "thin out" a bit the tables, holding words that accounts between 75 and 90 percent of frequency.
+
+Also, because we are interested in an text predictor model that surely will have as input strings of text that include stopwords, our model will be based on the n-grams that have them.
+
+As a next step, I'll create bigger n-grams frequency tables, sampling up to 20% of the raw data. Those data tables will be integrated into a Shiny app that once deployed will provide a simple and intuitive front end for the end user.
+
+In the web app, the user interface will consist of a text input box that will allow a user to enter a phrase. The input string will be cleaned (with the same process we showed on the corpus) and the last 3 to 1 words will be isolated and cross checked against the data frames to get the highest frequency next word(s) after a short delay. Our plan is also to allow the user to configure how many words our app should suggest. Also, there will be the posibility that the web app suggest a word if the user didn't finished writing the last word of their phrase.
+
+Our predictive algorithm will be using n-gram model with frequency lookup similar to our exploratory analysis above. One possible strategy would be to use the quadgram model with the last three input words to predict the next (fourth) word. If an unrecognized 3 word phrase is put in, then the last two words will be used to see what the most common third word following those two is. that is, the algorithm would back off to the trigram model. And if there are no matching trigram and then back off to the bigram model, the last word will be used to see what the most common second word following that one word is. If there are no matching words in the bigram, the algorithm will return "NO PREDICTIONS".

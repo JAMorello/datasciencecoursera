@@ -1,0 +1,55 @@
+---
+title: "Coursera Data Science Capstone"
+author: "Juan Agustín Morello"
+date: "1/10/2020"
+output: ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Building A Predictive Text Algorithm
+
+This presentation is for the Data Science Specialization Capstone that Johns Hopkins University offers in Coursera.
+
+The course instructors have gave us a curated dataset that Swiftkey, a company that provides text prediction technology, gently provided. It contains data from Twitter, blogs and news sites.
+
+The goal is to create an algorithm for predicting the next word given one or more words (a phrase/sentence) as input. A large corpus of more than 4 million documents was loaded, sampled, tokenized and analyzed. N-grams (1 to 4) were extracted from the corpus and then used for building the predictive model.
+
+## How Have I Made It
+
+Using R packages such as `tidyr`, `dplyr`, `tidytext`, `stringr`, `stringi`, `tm`, `RWeka`, I've loaded the data, created a sample of 20% of it, converted it to a corpus of documents, cleaned and prepared it to be used in the web app. 
+
+During cleaning, the data was converted to lower case, removed punctuation, links, emails, non alphanumeric characters, excessive whitespace, numbers and profanity words.
+
+After that, I've tokenized the documents in the corpus and builded N-Gram Models (unigram, bigram, trigram and quadgrams) with stopwords in the form of 'tibbles', a easy to use form of table, that functions as a sorted frequency dictionary. Then abandon the least frequent words (the long tail), say the ones that only cover 10% of occurrences or the ones that only appear once in the text corpus. After that, I've saved those tables as .RDS Files that later the web app reads.
+
+## About The Web Application
+
+The application uses the Shiny framework and provides a text input box for the user to type a desired phrase. It allows you to predict your next word in a sentence after you are done typing and clicked submit. 
+
+This function can help you to figure out a suitable word to use: for the current typing word if the algorithm detects that you haven't done typing it or a next possible word if detects a whitespace or a complete word. 
+
+It could take some few seconds to load before starting to get suggestions.
+
+The web app also comes with a tab with instructions and another about the author and related links.
+
+## How The Algorithm Works
+
+The algorithm developed to predict the next word in a user-entered text string was based on a classic N-gram model and allows to configure how many words the app should suggest.
+
+I've created various frequency dictionaries according to the n-grams, and the algorithm references them when the user types in a word, phrase, or sentence. 
+
+The algorithm first takes the last 3 words of the sentence and checks it against the 4-gram frequency table. If not present, then it backs off to check the next lower n-gram frequency dictionary. If doesn't find a suitable match at the bigram, it returns 'NO PREDICTIONS'
+
+Also, if the algorithm detects that the user haven't finished typing a word after clicking the 'Submit' button, it suggest possible words.
+
+## Links
+
+The Shiny application can be visualized [here]()
+
+You can see the Milestone Report [here](https://rpubs.com/Katriel/dsc-milestone-report)
+
+The source code is available [here]()
+

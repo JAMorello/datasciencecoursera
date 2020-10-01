@@ -1,4 +1,6 @@
 library(tm)
+library(tidyr)
+library(dplyr)
 
 cleanText <- function(text) {
   text <- VCorpus(VectorSource(text))
@@ -25,7 +27,7 @@ cleanText <- function(text) {
   # Remove profanity words
   # A list of profanity words provided by Google
   # https://code.google.com/archive/p/badwordslist/downloads
-  profanityFile <- "../data/badwords.txt"
+  profanityFile <- "./badwords.txt"
   profanityWords <- readLines(profanityFile, warn=FALSE,
                               encoding="UTF-8", skipNul = TRUE)
   profanityWords <- tolower(profanityWords)
@@ -64,10 +66,10 @@ wordCount <- function(text) {
 predictCurrentWord <- function(user_text, pred_df, num_pred) {
   user_text <- cleanText(user_text)
   prediction <- findBestMatches(user_text, 1, 
-                                pred_df$unigram, num_pred, nxt=FALSE)
+                                pred_df[[1]], num_pred, nxt=FALSE)
   
   # Full word detected, predict next word
-  if (lastWords(user_text, 1) %in% prediction) {
+  if (lastWords(user_text, 1) %in% unlist(prediction)) {
     prediction <- predictNextWord(user_text, pred_df, num_pred)
   }
   
@@ -85,15 +87,15 @@ predictNextWord <- function(user_text, pred_df, num_pred) {
   prediction <- NULL
   
   if(nwords >= 3) prediction <- findBestMatches(user_text, 3, 
-                                                pred_df$quadgram, num_pred, nxt=TRUE)
+                                                pred_df[[4]], num_pred, nxt=TRUE)
   if(length(prediction) >= 1) return(prediction)
   
   if(nwords >= 2) prediction <- findBestMatches(user_text, 2, 
-                                                pred_df$trigram, num_pred, nxt=TRUE)
+                                                pred_df[[3]], num_pred, nxt=TRUE)
   if(length(prediction) >= 1) return(prediction)
   
   if(nwords >= 1) prediction <- findBestMatches(user_text, 1, 
-                                                pred_df$bigram, num_pred, nxt=TRUE)
+                                                pred_df[[2]], num_pred, nxt=TRUE)
   if(length(prediction) >= 1) return(prediction)
   
   # If there are no predictions
@@ -105,11 +107,10 @@ predictNextWord <- function(user_text, pred_df, num_pred) {
 findBestMatches <- function(words, n, pred_df, num_pred, nxt=FALSE) {
   words <- lastWords(words, n)
   if (nxt) words <- paste(words, " ", sep="")
-  f <- head(pred_df[grep(paste("^", words, sep = ""),
-                         pred_df$word), "word"],
-            num_pred)
+  f <- head(filter(pred_df, str_detect(term, paste("^", words, sep = ""))),
+            num_pred)["term"]
   if (nxt) {
-    f <- gsub(paste("^", words, sep = ""), "", f)
+    f <- gsub(paste("^", words, sep = ""), "", f[["term"]])
   }
   return(f)
 }

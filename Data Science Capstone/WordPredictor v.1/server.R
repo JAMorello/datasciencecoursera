@@ -8,7 +8,7 @@ shinyServer(function(input, output) {
   source("wp_functions.R")
 
   # Load the n-gram frequencies
-  pred_df <- readRDS("../data/freq/predictive_text_df")
+  pred_df <- readRDS("./final_model")
   
   output$prediction <- renderPrint({
     
@@ -21,21 +21,17 @@ shinyServer(function(input, output) {
     ## (finished writing with a white space) 
     if (str_sub(user_text, start=-1) == " " && trimws(user_text) != "") {
       prediction = predictNextWord(user_text, pred_df, num_pred)
-      prediction = cat(prediction, sep = "\n")
+      prediction = cat(unlist(prediction), sep = "\n")
       
     ## If the user wants to predict the current word 
     ## (didn't finished writing - no whitespace- and wants suggestions)
     } else if (str_sub(user_text, start=-1) != " " && trimws(user_text) != "") {
       prediction <- predictCurrentWord(user_text, pred_df, num_pred)
-      prediction <-  cat(prediction, sep = "\n")
+      prediction <-  cat(unlist(prediction), sep = "\n")
     }
       
     invisible(prediction)
       
-    #} else if (!is.null(pcw) && lastWords(user_text, 1) %in% pcw) {
-      # Full word detected; Predict next word
-      #prediction = cat(predictNextWord(user_text, pred_df, num_pred), sep = "\n")
-       #If the user wrote a partial word (wants suggestions)
   })
   
     
