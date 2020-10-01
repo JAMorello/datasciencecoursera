@@ -50,7 +50,7 @@ shinyUI(fluidPage(theme = shinytheme("journal"),
                    p("Date: 01/10/2020"),
                    p("Purpose: As final project of the Data Science Capstone on Coursera, for the Data Science Specialization of John Hopkins University"),
                    br(),
-                   p("The source code of this web app is ", tags$a(href="", "here"))
+                   p("The source code of this web app is ", tags$a(href="https://github.com/JAMorello/datasciencecoursera/tree/master/Data%20Science%20Capstone/WordPredictor%20v.1", "here")),
                    p("You can see the code that manipulates the original data ", tags$a(href="https://github.com/JAMorello/datasciencecoursera/tree/master/Data%20Science%20Capstone", "here")), 
                    p("The Milestone Report is available ", tags$a(href="https://rpubs.com/Katriel/dsc-milestone-report", "here")),
                    p("And the presentation slides ", tags$a(href="https://rpubs.com/Katriel/dsc-presentation", "here"))
